@@ -41,7 +41,7 @@ input,select,textarea{width:100%;font:inherit;padding:8px 10px;border:1px solid 
 
 <div id="vLogin" class="panel login" hidden>
   <h1 style="font-size:1.3rem">Arsip Laporan Pengawas</h1>
-  <p class="sub">Masuk dengan email yang sudah didaftarkan admin.</p>
+  <p class="sub">Pengawas baru: pilih Daftar akun baru, lalu tunggu persetujuan admin.</p>
   <input id="anm" placeholder="Nama lengkap" autocomplete="name" hidden>
   <input id="aem" type="email" placeholder="Email" autocomplete="username">
   <input id="apw" type="password" placeholder="Kata sandi (min. 6 karakter)" autocomplete="current-password">
@@ -50,10 +50,21 @@ input,select,textarea{width:100%;font:inherit;padding:8px 10px;border:1px solid 
   <p class="msg" id="lmsg" role="status"></p>
 </div>
 
+<div id="vWait" class="panel login" hidden>
+  <h1 style="font-size:1.3rem">Menunggu persetujuan</h1>
+  <p class="sub">Permintaan akses untuk <b id="wmail"></b> sudah dikirim ke admin. Halaman ini otomatis terbuka setelah disetujui.</p>
+  <button class="btn ghost" id="wout">Keluar</button>
+</div>
+
 <div id="vApp" hidden>
   <div class="top"><div><h1>Arsip Laporan Pengawas Sekolah</h1><p class="sub">Tempat bersama para pengawas menyimpan dan mencari laporan kepengawasan.</p></div>
   <div><small id="who" class="note"></small> <button class="btn ghost sm" id="out">Keluar</button></div></div>
   <div class="stats" id="stats"></div>
+
+  <div class="panel" id="admBox" hidden>
+    <h2>Permintaan akses pengawas <small id="admN" class="note"></small></h2>
+    <div id="admL"></div>
+  </div>
 
   <div class="panel">
     <h2>Tambah laporan</h2>
@@ -95,7 +106,7 @@ const JENIS=["Laporan Bulanan","Supervisi Akademik","Supervisi Manajerial","Pemb
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const AERR={"auth/invalid-credential":"Email atau kata sandi salah.","auth/wrong-password":"Email atau kata sandi salah.","auth/user-not-found":"Akun belum terdaftar.","auth/email-already-in-use":"Email sudah terdaftar. Silakan masuk.","auth/weak-password":"Kata sandi minimal 6 karakter.","auth/invalid-email":"Format email tidak valid.","auth/too-many-requests":"Terlalu banyak percobaan. Coba lagi nanti."};
-let U=null,ADMIN=false,ALL=[],unsub=null,BUSY=false,UP=false;
+let U=null,ADMIN=false,ALL=[],REQ=[],unsub=null,unsubP=null,unsubQ=null,BUSY=false,UP=false;
 
 $("fk").innerHTML=JENIS.map(j=>"<option>"+j+"</option>").join("");
 $("fJ").innerHTML='<option value="">Semua jenis</option>'+JENIS.map(j=>"<option>"+j+"</option>").join("");
@@ -169,12 +180,23 @@ $("ago").onclick=async()=>{
   if(UP&&!nm){lmsg("Isi nama lengkap.");return}
   lmsg("Memproses…",true);
   try{
-    if(UP){const c=await AUTH.createUserWithEmailAndPassword(em,pw);await c.user.updateProfile({displayName:nm})}
+    if(UP){window.NMP=nm;const c=await AUTH.createUserWithEmailAndPassword(em,pw);await c.user.updateProfile({displayName:nm})}
     else await AUTH.signInWithEmailAndPassword(em,pw);
   }catch(e){lmsg(AERR[e.code]||"Gagal: "+(e.message||e))}};
 $("areset").onclick=async()=>{const em=$("aem").value.trim();if(!em){lmsg("Isi email dulu.");return}
   try{await AUTH.sendPasswordResetEmail(em);lmsg("Tautan atur ulang dikirim ke email Anda.",true)}catch(e){lmsg(AERR[e.code]||"Gagal: "+e.message)}};
 $("out").onclick=()=>AUTH.signOut();
+$("wout").onclick=()=>AUTH.signOut();
+function renderReq(){
+  $("admN").textContent=REQ.length?"("+REQ.length+" menunggu)":"";
+  $("admL").innerHTML=REQ.length?REQ.map(r=>'<div class="item" style="margin-bottom:8px"><div><h3>'+esc(r.nama||r.id)+'</h3><div class="meta">'+esc(r.id)+'</div></div><div class="acts"><button class="btn sm" data-ok="'+esc(r.id)+'">Setujui</button><button class="btn del sm" data-no="'+esc(r.id)+'">Tolak</button></div></div>').join(""):'<p class="note" style="margin:0">Tidak ada permintaan baru.</p>';
+}
+$("admL").addEventListener("click",async e=>{const b=e.target.closest("[data-ok],[data-no]");if(!b)return;
+  const em=b.dataset.ok||b.dataset.no,r=REQ.find(x=>x.id===em);
+  try{
+    if(b.dataset.ok){const bt=DB.batch();bt.set(DB.doc("izin/"+em),{nama:(r&&r.nama)||em});bt.delete(DB.doc("permintaan/"+em));await bt.commit()}
+    else if(confirm("Tolak permintaan dari "+em+"?"))await DB.doc("permintaan/"+em).delete();
+  }catch(er){alert("Gagal: "+(er.message||er))}});
 document.querySelectorAll("#vLogin input").forEach(i=>i.addEventListener("keydown",e=>{if(e.key==="Enter")$("ago").click()}));
 
 /* ---- Mulai ---- */
@@ -182,16 +204,24 @@ let AUTH,DB;
 if(FB_CONFIG.apiKey.indexOf("ISI")===0){$("vLogin").hidden=false;lmsg("Isi FB_CONFIG dan CLD di bagian atas script dulu.")}
 else{
   firebase.initializeApp(FB_CONFIG);AUTH=firebase.auth();AUTH.languageCode="id";DB=firebase.firestore();
+  const enter=(u,z)=>{
+    ADMIN=z.data().admin===true;U=u;
+    $("who").textContent=(u.displayName||u.email)+(ADMIN?" (admin)":"");
+    $("vLogin").hidden=true;$("vWait").hidden=true;$("vApp").hidden=false;$("admBox").hidden=!ADMIN;
+    unsub=DB.collection("laporan").orderBy("tgl","desc").onSnapshot(s=>{ALL=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{$("state").hidden=false;$("state").textContent="Koneksi data bermasalah. Periksa aturan Firestore lalu muat ulang."});
+    if(ADMIN)unsubQ=DB.collection("permintaan").onSnapshot(s=>{REQ=s.docs.map(d=>Object.assign({id:d.id},d.data()));renderReq()},()=>{});
+  };
   AUTH.onAuthStateChanged(async u=>{
-    if(unsub){unsub();unsub=null}
-    if(!u){U=null;$("vApp").hidden=true;$("vLogin").hidden=false;return}
+    [unsub,unsubP,unsubQ].forEach(f=>{if(f)f()});unsub=unsubP=unsubQ=null;
+    if(!u){U=null;$("vApp").hidden=true;$("vWait").hidden=true;$("vLogin").hidden=false;return}
+    const em=u.email.toLowerCase();
     try{
-      const z=await DB.doc("izin/"+u.email.toLowerCase()).get();
-      if(!z.exists){await AUTH.signOut();lmsg("Email "+u.email+" belum didaftarkan oleh admin.");return}
-      ADMIN=z.data().admin===true;U=u;
-      $("who").textContent=(u.displayName||u.email)+(ADMIN?" (admin)":"");
-      $("vLogin").hidden=true;$("vApp").hidden=false;
-      unsub=DB.collection("laporan").orderBy("tgl","desc").onSnapshot(s=>{ALL=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{$("state").hidden=false;$("state").textContent="Koneksi data bermasalah. Periksa aturan Firestore lalu muat ulang."});
+      const z=await DB.doc("izin/"+em).get();
+      if(z.exists){enter(u,z);return}
+      const r=await DB.doc("permintaan/"+em).get();
+      if(!r.exists)await DB.doc("permintaan/"+em).set({uid:u.uid,nama:window.NMP||u.displayName||u.email,at:firebase.firestore.FieldValue.serverTimestamp()});
+      U=u;$("vLogin").hidden=true;$("vApp").hidden=true;$("vWait").hidden=false;$("wmail").textContent=u.email;
+      unsubP=DB.doc("izin/"+em).onSnapshot(sn=>{if(sn.exists){if(unsubP){unsubP();unsubP=null}enter(u,sn)}});
     }catch(e){await AUTH.signOut();lmsg("Gagal memuat data: "+(e.message||"periksa aturan Firestore"))}
   });
 }
