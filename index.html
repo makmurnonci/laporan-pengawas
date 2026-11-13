@@ -236,7 +236,7 @@ const tm=t=>t&&t.toDate?t.toDate().toLocaleDateString("id-ID",{day:"numeric",mon
 function izinInfo(r){
   if(!U||r.uid!==U.uid)return "";
   const w=INREQ.filter(x=>x.laporanId===r.id&&x.status==="menunggu").map(x=>x.pemohonNama||x.pemohonEmail);
-  return w.length?'<p style="font-size:.82rem"><b style="color:var(--danger)">Menunggu izin Anda: '+esc(w.join(", "))+"</b></p>":"";
+  return w.length?'<p style="font-size:.82rem"><b style="color:var(--danger)">Permintaan izin dari: '+esc(w.join(", "))+"</b></p>":"";
 }
 function renderIn(){
   const L=INREQ.filter(x=>x.status==="menunggu"),w=L.length;
