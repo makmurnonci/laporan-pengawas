@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Arsip Laporan Pengawas Sekolah</title>
+<style>
+:root{--bg:#f1f4f8;--surface:#fff;--ink:#14253d;--muted:#5d6b80;--line:#dbe2ec;--brand:#1f6fb2;--brand-ink:#fff;--ok:#1f9d63;--danger:#d9364a;--chip:#e8f1fa;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1724;--surface:#16233a;--ink:#e6edf7;--muted:#9fb0c7;--line:#2a3b57;--brand:#5aa7e8;--brand-ink:#0e1724;--ok:#4cd08e;--danger:#ff7a8a;--chip:#1d3150}}
+:root[data-theme="dark"]{--bg:#0e1724;--surface:#16233a;--ink:#e6edf7;--muted:#9fb0c7;--line:#2a3b57;--brand:#5aa7e8;--brand-ink:#0e1724;--ok:#4cd08e;--danger:#ff7a8a;--chip:#1d3150}
+html{color-scheme:light dark}*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1040px;margin:0 auto;padding:24px 16px 48px}
+h1{margin:0;font-size:1.6rem;letter-spacing:-.01em}.sub{margin:4px 0 18px;color:var(--muted)}
+.top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px}
+.panel h2{margin:0 0 12px;font-size:1rem}
+.login{max-width:400px;margin:10vh auto 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.stat b{display:block;font-size:1.7rem;line-height:1.1;color:var(--brand)}.stat small{color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.grid .full{grid-column:1/-1}
+label{display:block;font-size:.82rem;color:var(--muted);margin-bottom:3px}
+input,select,textarea{width:100%;font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);margin-bottom:6px}
+.grid input,.grid select,.grid textarea{margin-bottom:0}textarea{resize:vertical;min-height:64px}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.btn{font:inherit;font-size:.88rem;font-weight:600;padding:8px 16px;border-radius:8px;border:1px solid var(--brand);background:var(--brand);color:var(--brand-ink);cursor:pointer;text-decoration:none;display:inline-block}
+.btn.ghost{background:transparent;color:var(--brand)}.btn.del{background:transparent;color:var(--danger);border-color:var(--line)}
+.btn.sm{padding:4px 10px;font-size:.8rem}.btn:disabled{opacity:.55;cursor:wait}
+.msg{min-height:1.3em;margin:8px 0 0;font-size:.88rem}.note{font-size:.82rem;color:var(--muted);margin:6px 0 0}
+.tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}.tools input{flex:1;min-width:200px;margin:0}.tools select{width:auto;min-width:150px;margin:0}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:10px;display:flex;gap:14px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
+.item h3{margin:0 0 4px;font-size:1rem}.item p{margin:4px 0 0;color:var(--muted);font-size:.9rem}
+.meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:.85rem;color:var(--muted)}
+.tag{background:var(--chip);color:var(--brand);padding:2px 10px;border-radius:99px;font-weight:600;font-size:.78rem}
+.acts{display:flex;gap:6px;flex-wrap:wrap}.empty{padding:28px;text-align:center;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div id="vLogin" class="panel login" hidden>
+  <h1 style="font-size:1.3rem">Arsip Laporan Pengawas</h1>
+  <p class="sub">Masuk dengan email yang sudah didaftarkan admin.</p>
+  <input id="anm" placeholder="Nama lengkap" autocomplete="name" hidden>
+  <input id="aem" type="email" placeholder="Email" autocomplete="username">
+  <input id="apw" type="password" placeholder="Kata sandi (min. 6 karakter)" autocomplete="current-password">
+  <p style="margin:6px 0"><button class="btn" id="ago">Masuk</button> <button class="btn ghost" id="amode">Daftar akun baru</button></p>
+  <p style="margin:4px 0"><button class="btn ghost sm" id="areset">Lupa kata sandi</button></p>
+  <p class="msg" id="lmsg" role="status"></p>
+</div>
+
+<div id="vApp" hidden>
+  <div class="top"><div><h1>Arsip Laporan Pengawas Sekolah</h1><p class="sub">Tempat bersama para pengawas menyimpan dan mencari laporan kepengawasan.</p></div>
+  <div><small id="who" class="note"></small> <button class="btn ghost sm" id="out">Keluar</button></div></div>
+  <div class="stats" id="stats"></div>
+
+  <div class="panel">
+    <h2>Tambah laporan</h2>
+    <div class="grid">
+      <div class="full"><label for="fj">Judul laporan</label><input id="fj" placeholder="Contoh: Supervisi Akademik Semester Ganjil"></div>
+      <div><label for="fk">Jenis laporan</label><select id="fk"></select></div>
+      <div><label for="fs">Sekolah binaan</label><input id="fs" placeholder="Nama sekolah"></div>
+      <div><label for="ft">Tanggal laporan</label><input id="ft" type="date"></div>
+      <div class="full"><label for="fr">Ringkasan atau catatan (opsional)</label><textarea id="fr"></textarea></div>
+      <div><label for="ff">File (Excel, Word, PDF, foto; maks. 10 MB)</label><input id="ff" type="file" accept=".xls,.xlsx,.doc,.docx,.pdf,image/*"></div>
+      <div><label for="fl">Atau tautan Google Drive</label><input id="fl" type="url" placeholder="https://"></div>
+    </div>
+    <p style="margin:12px 0 0"><button class="btn" id="fsave">Simpan laporan</button></p>
+    <p class="msg" id="fmsg" role="status"></p>
+  </div>
+
+  <div class="tools">
+    <input id="q" type="search" placeholder="Cari judul, sekolah, atau catatan" aria-label="Cari laporan">
+    <select id="fJ" aria-label="Filter jenis"></select>
+    <select id="fY" aria-label="Filter tahun"></select>
+    <select id="fP" aria-label="Filter pengawas"></select>
+  </div>
+  <div id="list"></div>
+  <p class="empty" id="state">Memuat arsip…</p>
+</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+/* ===== ISI DUA BAGIAN INI ===== */
+const FB_CONFIG={apiKey:"AIzaSyDu0GOIWp9Ufw4Io79sYTBEWxg99u0jc1U",authDomain:"laporan-pengawas-sekolah.firebaseapp.com",projectId:"laporan-pengawas-sekolah",appId:"1:571819381274:web:839a7fbb8f967c99fff7a3"};
+const CLD={cloud:"ISI_CLOUD_NAME",preset:"ISI_UPLOAD_PRESET"};
+/* =============================== */
+
+const JENIS=["Laporan Bulanan","Supervisi Akademik","Supervisi Manajerial","Pembinaan dan Pendampingan","Pemantauan 8 SNP","Laporan Tahunan","Penilaian Kinerja Guru","Lainnya"];
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const AERR={"auth/invalid-credential":"Email atau kata sandi salah.","auth/wrong-password":"Email atau kata sandi salah.","auth/user-not-found":"Akun belum terdaftar.","auth/email-already-in-use":"Email sudah terdaftar. Silakan masuk.","auth/weak-password":"Kata sandi minimal 6 karakter.","auth/invalid-email":"Format email tidak valid.","auth/too-many-requests":"Terlalu banyak percobaan. Coba lagi nanti."};
+let U=null,ADMIN=false,ALL=[],unsub=null,BUSY=false,UP=false;
+
+$("fk").innerHTML=JENIS.map(j=>"<option>"+j+"</option>").join("");
+$("fJ").innerHTML='<option value="">Semua jenis</option>'+JENIS.map(j=>"<option>"+j+"</option>").join("");
+$("ft").value=new Date().toISOString().slice(0,10);
+const lmsg=(t,ok)=>{const m=$("lmsg");m.textContent=t;m.style.color=ok?"var(--ok)":"var(--danger)"};
+const fmsg=(t,ok)=>{const m=$("fmsg");m.textContent=t;m.style.color=ok?"var(--ok)":"var(--danger)"};
+const tgl=d=>{try{return new Date(d+"T00:00:00").toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric"})}catch(e){return d||"-"}};
+
+function render(){
+  const yrs=[...new Set(ALL.map(r=>(r.tgl||"").slice(0,4)).filter(Boolean))].sort().reverse();
+  const fy=$("fY"),cv=fy.value;fy.innerHTML='<option value="">Semua tahun</option>'+yrs.map(y=>"<option>"+y+"</option>").join("");fy.value=yrs.includes(cv)?cv:"";
+  const fp=$("fP"),pv=fp.value,pw={};ALL.forEach(r=>pw[r.uid]=r.nama||"Pengawas");
+  fp.innerHTML='<option value="">Semua pengawas</option>'+Object.keys(pw).map(u=>'<option value="'+esc(u)+'">'+esc(pw[u])+"</option>").join("");fp.value=pw[pv]?pv:"";
+  const ty=String(new Date().getFullYear()),sch=new Set(ALL.map(r=>(r.sekolah||"").trim().toLowerCase()).filter(Boolean)).size;
+  $("stats").innerHTML=[["Total laporan",ALL.length],["Tahun ini",ALL.filter(r=>(r.tgl||"").startsWith(ty)).length],["Pengawas mengunggah",Object.keys(pw).length],["Sekolah binaan",sch]].map(s=>'<div class="stat"><b>'+s[1]+"</b><small>"+s[0]+"</small></div>").join("");
+  const q=$("q").value.toLowerCase(),j=$("fJ").value,y=fy.value,p=fp.value;
+  const rows=ALL.filter(r=>(!j||r.jenis===j)&&(!p||r.uid===p)&&(!y||(r.tgl||"").startsWith(y))&&(!q||[r.judul,r.sekolah,r.ringkasan].join(" ").toLowerCase().includes(q)));
+  $("list").innerHTML=rows.map(r=>'<div class="item"><div style="flex:1;min-width:220px"><h3>'+esc(r.judul)+'</h3><div class="meta"><span class="tag">'+esc(r.jenis)+"</span><span>"+esc(r.nama||"Pengawas")+"</span><span>·</span><span>"+esc(r.sekolah||"-")+"</span><span>·</span><span>"+esc(tgl(r.tgl))+"</span></div>"+(r.ringkasan?"<p>"+esc(r.ringkasan)+"</p>":"")+(r.fileName?'<p style="font-size:.8rem">'+esc(r.fileName)+"</p>":"")+'</div><div class="acts">'+(r.url?'<a class="btn sm" href="'+esc(r.url)+'" target="_blank" rel="noopener noreferrer">Buka</a>':"")+(ADMIN||r.uid===U.uid?'<button class="btn del sm" data-del="'+esc(r.id)+'">Hapus</button>':"")+"</div></div>").join("");
+  $("state").hidden=rows.length>0;
+  if(!rows.length)$("state").textContent=ALL.length?"Tidak ada laporan yang cocok.":"Belum ada laporan. Tambahkan laporan pertama di atas.";
+}
+
+function cldUp(f){return new Promise((res,rej)=>{
+  const ext=(/\.([A-Za-z0-9]+)$/.exec(f.name)||[,""])[1].toLowerCase(),img=/^(jpe?g|png|gif|webp)$/.test(ext);
+  const base=f.name.replace(/\.[^.]+$/,"").replace(/[^A-Za-z0-9_-]+/g,"-").slice(0,40)||"laporan";
+  const fd=new FormData();fd.append("file",f);fd.append("upload_preset",CLD.preset);
+  fd.append("public_id","laporan/"+U.uid.slice(0,8)+"-"+Date.now().toString(36)+"-"+base+(img?"":"."+ext));
+  const x=new XMLHttpRequest();x.open("POST","https://api.cloudinary.com/v1_1/"+CLD.cloud+"/auto/upload");
+  x.upload.onprogress=e=>{if(e.lengthComputable)fmsg("Mengunggah "+Math.round(e.loaded/e.total*100)+"%",true)};
+  x.onload=()=>{let j={};try{j=JSON.parse(x.responseText)}catch(e){}
+    if(x.status>=200&&x.status<300&&j.secure_url)res(j.secure_url);else rej(new Error((j.error&&j.error.message)||"Kode "+x.status))};
+  x.onerror=()=>rej(new Error("Koneksi gagal"));x.send(fd)})}
+
+async function simpan(){
+  if(BUSY)return;
+  const judul=$("fj").value.trim(),tg=$("ft").value,f=$("ff").files[0],l=$("fl").value.trim();
+  if(!judul||!tg){fmsg("Judul dan tanggal wajib diisi.");return}
+  let url="",fileName="";
+  if(f){
+    if(!/\.(xlsx?|docx?|pdf|jpe?g|png|gif|webp)$/i.test(f.name)){fmsg("Format tidak didukung. Pilih Excel, Word, PDF, atau foto.");return}
+    if(f.size>10*1048576){fmsg("Ukuran file melebihi 10 MB.");return}
+  }else if(l){
+    if(!/^https:\/\/\S+$/.test(l)){fmsg("Tautan harus lengkap dan diawali https://");return}
+    url=l;fileName="Tautan";
+  }
+  BUSY=true;$("fsave").disabled=true;fmsg("Menyimpan…",true);
+  try{
+    if(f){url=await cldUp(f);fileName=f.name}
+    await DB.collection("laporan").add({uid:U.uid,nama:U.displayName||U.email,judul,jenis:$("fk").value,sekolah:$("fs").value.trim(),tgl:tg,ringkasan:$("fr").value.trim(),url,fileName,at:firebase.firestore.FieldValue.serverTimestamp()});
+    ["fj","fs","fr","ff","fl"].forEach(k=>$(k).value="");fmsg("Laporan tersimpan.",true);
+  }catch(e){fmsg("Gagal menyimpan: "+(e.message||e))}
+  BUSY=false;$("fsave").disabled=false;
+}
+
+$("list").addEventListener("click",async e=>{const b=e.target.closest("[data-del]");if(!b)return;
+  const r=ALL.find(x=>x.id===b.dataset.del);
+  if(r&&confirm("Hapus laporan “"+r.judul+"”? Tindakan ini tidak bisa dibatalkan.")){try{await DB.doc("laporan/"+r.id).delete()}catch(er){alert("Gagal menghapus: "+er.message)}}});
+$("fsave").onclick=simpan;
+["q","fJ","fY","fP"].forEach(k=>$(k).addEventListener("input",render));
+
+/* ---- Login ---- */
+$("amode").onclick=()=>{UP=!UP;$("anm").hidden=!UP;$("ago").textContent=UP?"Daftar":"Masuk";$("amode").textContent=UP?"Sudah punya akun":"Daftar akun baru";lmsg("")};
+$("ago").onclick=async()=>{
+  const em=$("aem").value.trim(),pw=$("apw").value,nm=$("anm").value.trim();
+  if(!em||!pw){lmsg("Isi email dan kata sandi.");return}
+  if(UP&&!nm){lmsg("Isi nama lengkap.");return}
+  lmsg("Memproses…",true);
+  try{
+    if(UP){const c=await AUTH.createUserWithEmailAndPassword(em,pw);await c.user.updateProfile({displayName:nm})}
+    else await AUTH.signInWithEmailAndPassword(em,pw);
+  }catch(e){lmsg(AERR[e.code]||"Gagal: "+(e.message||e))}};
+$("areset").onclick=async()=>{const em=$("aem").value.trim();if(!em){lmsg("Isi email dulu.");return}
+  try{await AUTH.sendPasswordResetEmail(em);lmsg("Tautan atur ulang dikirim ke email Anda.",true)}catch(e){lmsg(AERR[e.code]||"Gagal: "+e.message)}};
+$("out").onclick=()=>AUTH.signOut();
+document.querySelectorAll("#vLogin input").forEach(i=>i.addEventListener("keydown",e=>{if(e.key==="Enter")$("ago").click()}));
+
+/* ---- Mulai ---- */
+let AUTH,DB;
+if(FB_CONFIG.apiKey.indexOf("ISI")===0){$("vLogin").hidden=false;lmsg("Isi FB_CONFIG dan CLD di bagian atas script dulu.")}
+else{
+  firebase.initializeApp(FB_CONFIG);AUTH=firebase.auth();AUTH.languageCode="id";DB=firebase.firestore();
+  AUTH.onAuthStateChanged(async u=>{
+    if(unsub){unsub();unsub=null}
+    if(!u){U=null;$("vApp").hidden=true;$("vLogin").hidden=false;return}
+    try{
+      const z=await DB.doc("izin/"+u.email.toLowerCase()).get();
+      if(!z.exists){await AUTH.signOut();lmsg("Email "+u.email+" belum didaftarkan oleh admin.");return}
+      ADMIN=z.data().admin===true;U=u;
+      $("who").textContent=(u.displayName||u.email)+(ADMIN?" (admin)":"");
+      $("vLogin").hidden=true;$("vApp").hidden=false;
+      unsub=DB.collection("laporan").orderBy("tgl","desc").onSnapshot(s=>{ALL=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{$("state").hidden=false;$("state").textContent="Koneksi data bermasalah. Periksa aturan Firestore lalu muat ulang."});
+    }catch(e){await AUTH.signOut();lmsg("Gagal memuat data: "+(e.message||"periksa aturan Firestore"))}
+  });
+}
+</script>
+</body>
+</html>
