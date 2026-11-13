@@ -34,6 +34,14 @@ input,select,textarea{width:100%;font:inherit;padding:8px 10px;border:1px solid 
 .meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:.85rem;color:var(--muted)}
 .tag{background:var(--chip);color:var(--brand);padding:2px 10px;border-radius:99px;font-weight:600;font-size:.78rem}
 .acts{display:flex;gap:6px;flex-wrap:wrap}.empty{padding:28px;text-align:center;color:var(--muted)}
+.dg{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}.dg .panel{margin:0;min-width:0}
+.hb{display:grid;grid-template-columns:minmax(90px,38%) 1fr auto;gap:8px;align-items:center;margin:7px 0;font-size:.85rem}
+.hb .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hb .tr{height:12px;border-radius:6px;background:var(--chip);overflow:hidden}.hb .tr i{display:block;height:100%;background:var(--brand)}
+.cc{display:flex;gap:4px;align-items:flex-end;height:150px}
+.cc div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:.7rem;color:var(--muted)}
+.cc i{display:block;width:100%;background:var(--brand);border-radius:3px 3px 0 0;min-height:2px}
+.mis{margin:4px 0;font-size:.88rem}
 </style>
 </head>
 <body>
@@ -88,6 +96,7 @@ input,select,textarea{width:100%;font:inherit;padding:8px 10px;border:1px solid 
     <select id="fY" aria-label="Filter tahun"></select>
     <select id="fP" aria-label="Filter pengawas"></select>
   </div>
+  <div id="dash" style="margin-bottom:14px"></div>
   <div id="list"></div>
   <p class="empty" id="state">Memuat arsip…</p>
 </div>
@@ -106,7 +115,7 @@ const JENIS=["Laporan Bulanan","Supervisi Akademik","Supervisi Manajerial","Pemb
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const AERR={"auth/invalid-credential":"Email atau kata sandi salah.","auth/wrong-password":"Email atau kata sandi salah.","auth/user-not-found":"Akun belum terdaftar.","auth/email-already-in-use":"Email sudah terdaftar. Silakan masuk.","auth/weak-password":"Kata sandi minimal 6 karakter.","auth/invalid-email":"Format email tidak valid.","auth/too-many-requests":"Terlalu banyak percobaan. Coba lagi nanti."};
-let U=null,ADMIN=false,ALL=[],REQ=[],unsub=null,unsubP=null,unsubQ=null,BUSY=false,UP=false;
+let U=null,ADMIN=false,ALL=[],REQ=[],unsub=null,unsubP=null,unsubQ=null,unsubI=null,IZN=[],BUSY=false,UP=false;
 
 $("fk").innerHTML=JENIS.map(j=>"<option>"+j+"</option>").join("");
 $("fJ").innerHTML='<option value="">Semua jenis</option>'+JENIS.map(j=>"<option>"+j+"</option>").join("");
@@ -127,6 +136,7 @@ function render(){
   $("stats").innerHTML=[["Total laporan",ALL.length],["Tahun ini",ALL.filter(r=>(r.tgl||"").startsWith(ty)).length],["Pengawas mengunggah",Object.keys(pw).length],["Sekolah binaan",sch]].map(s=>'<div class="stat"><b>'+s[1]+"</b><small>"+s[0]+"</small></div>").join("");
   const q=$("q").value.toLowerCase(),j=$("fJ").value,y=fy.value,p=fp.value;
   const rows=ALL.filter(r=>(!j||r.jenis===j)&&(!p||r.uid===p)&&(!y||(r.tgl||"").startsWith(y))&&(!q||[r.judul,r.sekolah,r.ringkasan].join(" ").toLowerCase().includes(q)));
+  dash(rows);
   $("list").innerHTML=rows.map(r=>'<div class="item"><div style="flex:1;min-width:220px"><h3>'+esc(r.judul)+'</h3><div class="meta"><span class="tag">'+esc(r.jenis)+"</span><span>"+esc(r.nama||"Pengawas")+"</span><span>·</span><span>"+esc(r.sekolah||"-")+"</span><span>·</span><span>"+esc(tgl(r.tgl))+"</span></div>"+(r.ringkasan?"<p>"+esc(r.ringkasan)+"</p>":"")+(r.fileName?'<p style="font-size:.8rem">'+esc(r.fileName)+"</p>":"")+'</div><div class="acts">'+(r.url?'<a class="btn sm" href="'+esc(r.url)+'" target="_blank" rel="noopener noreferrer">Buka</a>':"")+(ADMIN||r.uid===U.uid?'<button class="btn del sm" data-del="'+esc(r.id)+'">Hapus</button>':"")+"</div></div>").join("");
   $("state").hidden=rows.length>0;
   if(!rows.length)$("state").textContent=ALL.length?"Tidak ada laporan yang cocok.":"Belum ada laporan. Tambahkan laporan pertama di atas.";
@@ -160,7 +170,7 @@ async function simpan(){
   BUSY=true;$("fsave").disabled=true;fmsg("Menyimpan…",true);
   try{
     if(f){url=await cldUp(f);fileName=f.name}
-    await DB.collection("laporan").add({uid:U.uid,nama:U.displayName||U.email,judul,jenis,sekolah:$("fs").value.trim(),tgl:tg,ringkasan:$("fr").value.trim(),url,fileName,at:firebase.firestore.FieldValue.serverTimestamp()});
+    await DB.collection("laporan").add({uid:U.uid,email:U.email.toLowerCase(),nama:U.displayName||U.email,judul,jenis,sekolah:$("fs").value.trim(),tgl:tg,ringkasan:$("fr").value.trim(),url,fileName,at:firebase.firestore.FieldValue.serverTimestamp()});
     ["fj","fs","fr","ff","fl","fk2"].forEach(k=>$(k).value="");fmsg("Laporan tersimpan.",true);
   }catch(e){fmsg("Gagal menyimpan: "+(e.message||e))}
   BUSY=false;$("fsave").disabled=false;
@@ -171,6 +181,23 @@ $("list").addEventListener("click",async e=>{const b=e.target.closest("[data-del
   if(r&&confirm("Hapus laporan “"+r.judul+"”? Tindakan ini tidak bisa dibatalkan.")){try{await DB.doc("laporan/"+r.id).delete()}catch(er){alert("Gagal menghapus: "+er.message)}}});
 $("fsave").onclick=simpan;
 ["q","fJ","fY","fP"].forEach(k=>$(k).addEventListener("input",render));
+
+/* ---- Dashboard ---- */
+const BLN=["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+function dash(rows){
+  const cnt=f=>{const m={};rows.forEach(r=>{const k=f(r)||"(kosong)";m[k]=(m[k]||0)+1});return Object.entries(m).sort((a,b)=>b[1]-a[1])};
+  const hb=(a,n)=>{a=a.slice(0,n);const mx=a.length?a[0][1]:1;return a.map(([k,v])=>'<div class="hb"><span class="nm" title="'+esc(k)+'">'+esc(k)+'</span><div class="tr"><i style="width:'+Math.round(v/mx*100)+'%"></i></div><b>'+v+'</b></div>').join("")||'<p class="note">Belum ada data.</p>'};
+  const yr=$("fY").value||String(new Date().getFullYear()),m=Array(12).fill(0);
+  rows.forEach(r=>{if((r.tgl||"").startsWith(yr))m[+r.tgl.slice(5,7)-1]++});
+  const mx=Math.max(1,...m);
+  const col='<div class="cc">'+m.map((v,i)=>'<div title="'+BLN[i]+": "+v+'">'+(v||"")+'<i style="height:'+Math.round(v/mx*100)+'%"></i><span>'+BLN[i]+'</span></div>').join("")+'</div>';
+  let mis="";
+  if(ADMIN&&IZN.length){
+    const sudah=new Set(ALL.map(r=>r.email).filter(Boolean)),bl=IZN.filter(x=>!sudah.has(x.id)&&x.admin!==true);
+    mis='<div class="panel"><h2>Belum mengunggah laporan</h2>'+(bl.length?bl.map(x=>'<div class="mis">'+esc(x.nama||x.id)+'</div>').join(""):'<p class="note">Semua pengawas sudah mengunggah.</p>')+'<p class="note">Laporan lama tanpa data email tidak terhitung.</p></div>';
+  }
+  $("dash").innerHTML='<div class="dg"><div class="panel"><h2>Laporan per bulan, '+esc(yr)+'</h2>'+col+'</div><div class="panel"><h2>Per jenis laporan</h2>'+hb(cnt(r=>r.jenis),8)+'</div><div class="panel"><h2>Per pengawas</h2>'+hb(cnt(r=>r.nama),10)+'</div><div class="panel"><h2>Per sekolah</h2>'+hb(cnt(r=>(r.sekolah||"").trim()),10)+'</div>'+mis+'</div>';
+}
 
 /* ---- Login ---- */
 $("amode").onclick=()=>{UP=!UP;$("anm").hidden=!UP;$("ago").textContent=UP?"Daftar":"Masuk";$("amode").textContent=UP?"Sudah punya akun":"Daftar akun baru";lmsg("")};
@@ -209,10 +236,11 @@ else{
     $("who").textContent=(u.displayName||u.email)+(ADMIN?" (admin)":"");
     $("vLogin").hidden=true;$("vWait").hidden=true;$("vApp").hidden=false;$("admBox").hidden=!ADMIN;
     unsub=DB.collection("laporan").orderBy("tgl","desc").onSnapshot(s=>{ALL=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{$("state").hidden=false;$("state").textContent="Koneksi data bermasalah. Periksa aturan Firestore lalu muat ulang."});
+    if(ADMIN)unsubI=DB.collection("izin").onSnapshot(s=>{IZN=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
     if(ADMIN)unsubQ=DB.collection("permintaan").onSnapshot(s=>{REQ=s.docs.map(d=>Object.assign({id:d.id},d.data()));renderReq()},()=>{});
   };
   AUTH.onAuthStateChanged(async u=>{
-    [unsub,unsubP,unsubQ].forEach(f=>{if(f)f()});unsub=unsubP=unsubQ=null;
+    [unsub,unsubP,unsubQ,unsubI].forEach(f=>{if(f)f()});unsub=unsubP=unsubQ=unsubI=null;
     if(!u){U=null;$("vApp").hidden=true;$("vWait").hidden=true;$("vLogin").hidden=false;return}
     const em=u.email.toLowerCase();
     try{
