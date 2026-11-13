@@ -195,7 +195,7 @@ function bukaBtn(r){
   if(!r.fileName)return "";
   if(ADMIN||r.uid===U.uid)return '<button class="btn sm" data-open="'+esc(r.id)+'">Buka</button>';
   const st=(MYREQ[r.id]||{}).status;
-  if(st==="disetujui")return '<button class="btn sm" data-open="'+esc(r.id)+'">Buka</button>';
+  if(st==="disetujui")return '<button class="btn sm" data-open="'+esc(r.id)+'" title="Izin berlaku satu kali">Buka (sekali)</button>';
   if(st==="menunggu")return '<button class="btn ghost sm" disabled>Menunggu izin</button>';
   return '<button class="btn ghost sm" data-ask="'+esc(r.id)+'">Minta izin</button>';
 }
@@ -203,7 +203,9 @@ $("list").addEventListener("click",async e=>{
   const o=e.target.closest("[data-open]"),k=e.target.closest("[data-ask]");
   if(o){const w=window.open("about:blank","_blank");
     try{const d=await DB.doc("berkas/"+o.dataset.open).get();if(!d.exists)throw new Error("Berkas tidak ditemukan.");
-      if(w)w.location.href=d.data().url;else location.href=d.data().url}
+      if(w)w.location.href=d.data().url;else location.href=d.data().url;
+      const r=ALL.find(x=>x.id===o.dataset.open);
+      if(r&&r.uid!==U.uid&&!ADMIN)DB.doc("permohonan/"+r.id+"_"+U.email.toLowerCase()).delete().catch(()=>{})}
     catch(er){if(w)w.close();alert("Tidak bisa membuka: "+(er.message||er))}}
   if(k){const r=ALL.find(x=>x.id===k.dataset.ask);if(!r)return;const em=U.email.toLowerCase();
     try{await DB.doc("permohonan/"+r.id+"_"+em).set({laporanId:r.id,ownerUid:r.uid,pemohonUid:U.uid,pemohonEmail:em,pemohonNama:U.displayName||U.email,judul:r.judul,status:"menunggu",at:firebase.firestore.FieldValue.serverTimestamp()});
@@ -213,12 +215,11 @@ $("list").addEventListener("click",async e=>{
 const tm=t=>t&&t.toDate?t.toDate().toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"numeric"}):"";
 function izinInfo(r){
   if(!U||r.uid!==U.uid)return "";
-  const a=INREQ.filter(x=>x.laporanId===r.id),w=a.filter(x=>x.status==="menunggu").map(x=>x.pemohonNama||x.pemohonEmail),d=a.filter(x=>x.status==="disetujui").map(x=>x.pemohonNama||x.pemohonEmail);
-  if(!a.length)return "";
-  return '<p style="font-size:.82rem">'+(w.length?'<b style="color:var(--danger)">Menunggu izin Anda: '+esc(w.join(", "))+"</b> ":"")+(d.length?"Diizinkan: "+esc(d.join(", ")):"")+"</p>";
+  const w=INREQ.filter(x=>x.laporanId===r.id&&x.status==="menunggu").map(x=>x.pemohonNama||x.pemohonEmail);
+  return w.length?'<p style="font-size:.82rem"><b style="color:var(--danger)">Menunggu izin Anda: '+esc(w.join(", "))+"</b></p>":"";
 }
 function renderIn(){
-  const L=INREQ.slice().sort((a,b)=>(a.status==="menunggu"?0:1)-(b.status==="menunggu"?0:1)),w=INREQ.filter(x=>x.status==="menunggu").length;
+  const L=INREQ.filter(x=>x.status==="menunggu"),w=L.length;
   $("inBox").hidden=!L.length;$("inN").textContent=w?"("+w+" menunggu)":"";
   $("inL").innerHTML=L.map(x=>'<div class="item" style="margin-bottom:8px"><div><h3>'+esc(x.pemohonNama||x.pemohonEmail)+'</h3><div class="meta">'+esc(x.pemohonEmail||"")+(tm(x.at)?" · "+tm(x.at):"")+'</div><p style="margin:2px 0 0;font-size:.9rem">Ingin membuka: <b>'+esc(x.judul)+'</b></p></div><div class="acts">'+(x.status==="menunggu"?'<button class="btn sm" data-yes="'+esc(x.id)+'">Izinkan</button><button class="btn del sm" data-nope="'+esc(x.id)+'">Tolak</button>':'<span class="tag">Diizinkan</span><button class="btn del sm" data-nope="'+esc(x.id)+'">Cabut</button>')+"</div></div>").join("");
 }
