@@ -60,6 +60,7 @@ input,select,textarea{width:100%;font:inherit;padding:8px 10px;border:1px solid 
     <div class="grid">
       <div class="full"><label for="fj">Judul laporan</label><input id="fj" placeholder="Contoh: Supervisi Akademik Semester Ganjil"></div>
       <div><label for="fk">Jenis laporan</label><select id="fk"></select></div>
+      <div id="fkbox" hidden><label for="fk2">Tulis jenis laporan</label><input id="fk2" placeholder="Contoh: Pembinaan Kepala Sekolah" maxlength="60"></div>
       <div><label for="fs">Sekolah binaan</label><input id="fs" placeholder="Nama sekolah"></div>
       <div><label for="ft">Tanggal laporan</label><input id="ft" type="date"></div>
       <div class="full"><label for="fr">Ringkasan atau catatan (opsional)</label><textarea id="fr"></textarea></div>
@@ -87,7 +88,7 @@ input,select,textarea{width:100%;font:inherit;padding:8px 10px;border:1px solid 
 <script>
 /* ===== ISI DUA BAGIAN INI ===== */
 const FB_CONFIG={apiKey:"AIzaSyDu0GOIWp9Ufw4Io79sYTBEWxg99u0jc1U",authDomain:"laporan-pengawas-sekolah.firebaseapp.com",projectId:"laporan-pengawas-sekolah",appId:"1:571819381274:web:839a7fbb8f967c99fff7a3"};
-const CLD={cloud:"ISI_CLOUD_NAME",preset:"ISI_UPLOAD_PRESET"};
+const CLD={cloud:"l8s0f9dl",preset:"arsiplaporan"};
 /* =============================== */
 
 const JENIS=["Laporan Bulanan","Supervisi Akademik","Supervisi Manajerial","Pembinaan dan Pendampingan","Pemantauan 8 SNP","Laporan Tahunan","Penilaian Kinerja Guru","Lainnya"];
@@ -98,6 +99,7 @@ let U=null,ADMIN=false,ALL=[],unsub=null,BUSY=false,UP=false;
 
 $("fk").innerHTML=JENIS.map(j=>"<option>"+j+"</option>").join("");
 $("fJ").innerHTML='<option value="">Semua jenis</option>'+JENIS.map(j=>"<option>"+j+"</option>").join("");
+$("fk").addEventListener("change",()=>{$("fkbox").hidden=$("fk").value!=="Lainnya"});
 $("ft").value=new Date().toISOString().slice(0,10);
 const lmsg=(t,ok)=>{const m=$("lmsg");m.textContent=t;m.style.color=ok?"var(--ok)":"var(--danger)"};
 const fmsg=(t,ok)=>{const m=$("fmsg");m.textContent=t;m.style.color=ok?"var(--ok)":"var(--danger)"};
@@ -106,6 +108,8 @@ const tgl=d=>{try{return new Date(d+"T00:00:00").toLocaleDateString("id-ID",{day
 function render(){
   const yrs=[...new Set(ALL.map(r=>(r.tgl||"").slice(0,4)).filter(Boolean))].sort().reverse();
   const fy=$("fY"),cv=fy.value;fy.innerHTML='<option value="">Semua tahun</option>'+yrs.map(y=>"<option>"+y+"</option>").join("");fy.value=yrs.includes(cv)?cv:"";
+  const fj=$("fJ"),jv=fj.value,js=[...JENIS,...new Set(ALL.map(r=>r.jenis).filter(x=>x&&!JENIS.includes(x)))];
+  fj.innerHTML='<option value="">Semua jenis</option>'+js.map(j=>"<option>"+esc(j)+"</option>").join("");fj.value=js.includes(jv)?jv:"";
   const fp=$("fP"),pv=fp.value,pw={};ALL.forEach(r=>pw[r.uid]=r.nama||"Pengawas");
   fp.innerHTML='<option value="">Semua pengawas</option>'+Object.keys(pw).map(u=>'<option value="'+esc(u)+'">'+esc(pw[u])+"</option>").join("");fp.value=pw[pv]?pv:"";
   const ty=String(new Date().getFullYear()),sch=new Set(ALL.map(r=>(r.sekolah||"").trim().toLowerCase()).filter(Boolean)).size;
@@ -132,6 +136,8 @@ async function simpan(){
   if(BUSY)return;
   const judul=$("fj").value.trim(),tg=$("ft").value,f=$("ff").files[0],l=$("fl").value.trim();
   if(!judul||!tg){fmsg("Judul dan tanggal wajib diisi.");return}
+  let jenis=$("fk").value;
+  if(jenis==="Lainnya"){const c=$("fk2").value.trim();if(c)jenis=c}
   let url="",fileName="";
   if(f){
     if(!/\.(xlsx?|docx?|pdf|jpe?g|png|gif|webp)$/i.test(f.name)){fmsg("Format tidak didukung. Pilih Excel, Word, PDF, atau foto.");return}
@@ -143,8 +149,8 @@ async function simpan(){
   BUSY=true;$("fsave").disabled=true;fmsg("Menyimpan…",true);
   try{
     if(f){url=await cldUp(f);fileName=f.name}
-    await DB.collection("laporan").add({uid:U.uid,nama:U.displayName||U.email,judul,jenis:$("fk").value,sekolah:$("fs").value.trim(),tgl:tg,ringkasan:$("fr").value.trim(),url,fileName,at:firebase.firestore.FieldValue.serverTimestamp()});
-    ["fj","fs","fr","ff","fl"].forEach(k=>$(k).value="");fmsg("Laporan tersimpan.",true);
+    await DB.collection("laporan").add({uid:U.uid,nama:U.displayName||U.email,judul,jenis,sekolah:$("fs").value.trim(),tgl:tg,ringkasan:$("fr").value.trim(),url,fileName,at:firebase.firestore.FieldValue.serverTimestamp()});
+    ["fj","fs","fr","ff","fl","fk2"].forEach(k=>$(k).value="");fmsg("Laporan tersimpan.",true);
   }catch(e){fmsg("Gagal menyimpan: "+(e.message||e))}
   BUSY=false;$("fsave").disabled=false;
 }
