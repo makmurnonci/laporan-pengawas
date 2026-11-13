@@ -90,6 +90,10 @@ input,select,textarea{width:100%;font:inherit;padding:8px 10px;border:1px solid 
     <p class="msg" id="fmsg" role="status"></p>
   </div>
 
+  <div class="panel" id="notif" hidden style="border:2px solid var(--danger);display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between;padding:10px 14px">
+    <b id="notifT" style="color:var(--danger)"></b><button class="btn sm" id="notifB"></button>
+  </div>
+
   <div class="tools">
     <input id="q" type="search" placeholder="Cari judul, sekolah, atau nama pengawas" aria-label="Cari laporan">
     <select id="fJ" aria-label="Filter jenis"></select>
@@ -117,7 +121,7 @@ const JENIS=["Laporan Bulanan","Supervisi Akademik","Supervisi Manajerial","Pemb
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const AERR={"auth/invalid-credential":"Email atau kata sandi salah.","auth/wrong-password":"Email atau kata sandi salah.","auth/user-not-found":"Akun belum terdaftar.","auth/email-already-in-use":"Email sudah terdaftar. Silakan masuk.","auth/weak-password":"Kata sandi minimal 6 karakter.","auth/invalid-email":"Format email tidak valid.","auth/too-many-requests":"Terlalu banyak percobaan. Coba lagi nanti."};
-let U=null,ADMIN=false,ALL=[],REQ=[],unsub=null,unsubP=null,unsubQ=null,unsubI=null,IZN=[],SHOW=5,MYREQ={},INREQ=[],unsubR=null,unsubO=null,BUSY=false,UP=false;
+let U=null,ADMIN=false,ALL=[],REQ=[],unsub=null,unsubP=null,unsubQ=null,unsubI=null,IZN=[],ONLYREQ=false,SHOW=5,MYREQ={},INREQ=[],unsubR=null,unsubO=null,BUSY=false,UP=false;
 
 $("fk").innerHTML=JENIS.map(j=>"<option>"+j+"</option>").join("");
 $("fJ").innerHTML='<option value="">Semua jenis</option>'+JENIS.map(j=>"<option>"+j+"</option>").join("");
@@ -136,8 +140,12 @@ function render(){
   fp.innerHTML='<option value="">Semua pengawas (pilih nama)</option>'+Object.keys(pw).sort((x,y)=>pw[x].localeCompare(pw[y])).map(u=>'<option value="'+esc(u)+'">'+esc(pw[u])+"</option>").join("");fp.value=pw[pv]?pv:"";
   const ty=String(new Date().getFullYear()),sch=new Set(ALL.map(r=>(r.sekolah||"").trim().toLowerCase()).filter(Boolean)).size;
   $("stats").innerHTML=[["Total laporan",ALL.length],["Tahun ini",ALL.filter(r=>(r.tgl||"").startsWith(ty)).length],["Pengawas mengunggah",Object.keys(pw).length],["Sekolah binaan",sch]].map(s=>'<div class="stat"><b>'+s[1]+"</b><small>"+s[0]+"</small></div>").join("");
+  const pendL=INREQ.filter(x=>x.status==="menunggu"),pend=new Set(pendL.map(x=>x.laporanId));
+  if(!pend.size)ONLYREQ=false;
+  $("notif").hidden=!pend.size;
+  if(pend.size){$("notifT").textContent="Ada "+pendL.length+" permintaan izin membuka laporan Anda";$("notifB").textContent=ONLYREQ?"Tampilkan semua laporan":"Lihat laporan yang diminta"}
   const q=$("q").value.toLowerCase(),j=$("fJ").value,y=fy.value,p=fp.value;
-  const rows=ALL.filter(r=>(!j||r.jenis===j)&&(!p||r.uid===p)&&(!y||(r.tgl||"").startsWith(y))&&(!q||[r.judul,r.sekolah,r.ringkasan,r.nama].join(" ").toLowerCase().includes(q)));
+  const rows=ALL.filter(r=>(!j||r.jenis===j)&&(!p||r.uid===p)&&(!ONLYREQ||pend.has(r.id))&&(!y||(r.tgl||"").startsWith(y))&&(!q||[r.judul,r.sekolah,r.ringkasan,r.nama].join(" ").toLowerCase().includes(q)));
   const pi=$("pinfo");
   if(p){pi.hidden=false;pi.innerHTML=p===U.uid?"Menampilkan laporan Anda sendiri ("+rows.length+").":"Menampilkan laporan <b>"+esc(pw[p]||"")+"</b> ("+rows.length+" laporan). Klik <b>Minta izin</b> pada laporan yang ingin dibuka."}else pi.hidden=true;
   dash(rows);
@@ -187,6 +195,7 @@ $("list").addEventListener("click",async e=>{const b=e.target.closest("[data-del
   const r=ALL.find(x=>x.id===b.dataset.del);
   if(r&&confirm("Hapus laporan “"+r.judul+"”? Tindakan ini tidak bisa dibatalkan.")){try{await DB.doc("laporan/"+r.id).delete();try{await DB.doc("berkas/"+r.id).delete()}catch(x){}}catch(er){alert("Gagal menghapus: "+er.message)}}});
 $("fsave").onclick=simpan;
+$("notifB").onclick=()=>{ONLYREQ=!ONLYREQ;SHOW=5;render();if(ONLYREQ)$("list").scrollIntoView({behavior:"smooth",block:"start"})};
 ["q","fJ","fY","fP"].forEach(k=>$(k).addEventListener("input",()=>{SHOW=5;render()}));
 
 /* ---- Warna per pengawas ---- */
