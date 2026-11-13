@@ -101,6 +101,7 @@ input,select,textarea{width:100%;font:inherit;padding:8px 10px;border:1px solid 
     <select id="fY" aria-label="Filter tahun"></select>
     <select id="fP" aria-label="Filter pengawas"></select>
   </div>
+  <p class="note" style="margin:0 0 6px">Laporan Anda ditandai biru dengan tulisan “Laporan saya”. Tiap pengawas lain punya warna garis sendiri.</p>
   <p id="pinfo" class="note" hidden style="margin:0 0 10px"></p>
   <div id="dash" style="margin-bottom:14px"></div>
   <div id="list"></div>
@@ -145,7 +146,7 @@ function render(){
   const pi=$("pinfo");
   if(p){pi.hidden=false;pi.innerHTML=p===U.uid?"Menampilkan laporan Anda sendiri ("+rows.length+").":"Menampilkan laporan <b>"+esc(pw[p]||"")+"</b> ("+rows.length+" laporan). Klik <b>Minta izin</b> pada laporan yang ingin dibuka."}else pi.hidden=true;
   dash(rows);
-  $("list").innerHTML=rows.slice(0,SHOW).map(r=>'<div class="item"><div style="flex:1;min-width:220px"><h3>'+esc(r.judul)+'</h3><div class="meta"><span class="tag">'+esc(r.jenis)+"</span><span>"+esc(r.nama||"Pengawas")+"</span><span>·</span><span>"+esc(r.sekolah||"-")+"</span><span>·</span><span>"+esc(tgl(r.tgl))+"</span></div>"+(r.ringkasan?"<p>"+esc(r.ringkasan)+"</p>":"")+(r.fileName?'<p style="font-size:.8rem">'+esc(r.fileName)+"</p>":"")+izinInfo(r)+'</div><div class="acts">'+bukaBtn(r)+(ADMIN||r.uid===U.uid?'<button class="btn del sm" data-del="'+esc(r.id)+'">Hapus</button>':"")+"</div></div>").join("")+more(rows.length);
+  $("list").innerHTML=rows.slice(0,SHOW).map(r=>'<div class="item" style="'+warna(r)+'"><div style="flex:1;min-width:220px"><h3>'+esc(r.judul)+'</h3><div class="meta"><span class="tag">'+esc(r.jenis)+'</span><span style="font-weight:600;color:'+wn(r)+'">'+(r.uid===U.uid?"Laporan saya":esc(r.nama||"Pengawas"))+"</span><span>·</span><span>"+esc(r.sekolah||"-")+"</span><span>·</span><span>"+esc(tgl(r.tgl))+"</span></div>"+(r.ringkasan?"<p>"+esc(r.ringkasan)+"</p>":"")+(r.fileName?'<p style="font-size:.8rem">'+esc(r.fileName)+"</p>":"")+izinInfo(r)+'</div><div class="acts">'+bukaBtn(r)+(ADMIN||r.uid===U.uid?'<button class="btn del sm" data-del="'+esc(r.id)+'">Hapus</button>':"")+"</div></div>").join("")+more(rows.length);
   $("state").hidden=rows.length>0;
   if(!rows.length)$("state").textContent=ALL.length?"Tidak ada laporan yang cocok.":"Belum ada laporan. Tambahkan laporan pertama di atas.";
 }
@@ -192,6 +193,11 @@ $("list").addEventListener("click",async e=>{const b=e.target.closest("[data-del
   if(r&&confirm("Hapus laporan “"+r.judul+"”? Tindakan ini tidak bisa dibatalkan.")){try{await DB.doc("laporan/"+r.id).delete();try{await DB.doc("berkas/"+r.id).delete()}catch(x){}}catch(er){alert("Gagal menghapus: "+er.message)}}});
 $("fsave").onclick=simpan;
 ["q","fJ","fY","fP"].forEach(k=>$(k).addEventListener("input",()=>{SHOW=5;render()}));
+
+/* ---- Warna per pengawas ---- */
+function hue(u){let h=0;for(const c of String(u))h=(h*31+c.charCodeAt(0))%360;return h}
+const wn=r=>r.uid===U.uid?"var(--brand)":"hsl("+hue(r.uid)+",65%,50%)";
+const warna=r=>r.uid===U.uid?"border-left:6px solid var(--brand);background:var(--chip)":"border-left:6px solid hsl("+hue(r.uid)+",65%,50%)";
 
 /* ---- Tampilkan bertahap ---- */
 function more(n){
