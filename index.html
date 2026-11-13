@@ -96,11 +96,12 @@ input,select,textarea{width:100%;font:inherit;padding:8px 10px;border:1px solid 
   </div>
 
   <div class="tools">
-    <input id="q" type="search" placeholder="Cari judul, sekolah, atau catatan" aria-label="Cari laporan">
+    <input id="q" type="search" placeholder="Cari judul, sekolah, atau nama pengawas" aria-label="Cari laporan">
     <select id="fJ" aria-label="Filter jenis"></select>
     <select id="fY" aria-label="Filter tahun"></select>
     <select id="fP" aria-label="Filter pengawas"></select>
   </div>
+  <p id="pinfo" class="note" hidden style="margin:0 0 10px"></p>
   <div id="dash" style="margin-bottom:14px"></div>
   <div id="list"></div>
   <p class="empty" id="state">Memuat arsip…</p>
@@ -120,7 +121,7 @@ const JENIS=["Laporan Bulanan","Supervisi Akademik","Supervisi Manajerial","Pemb
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const AERR={"auth/invalid-credential":"Email atau kata sandi salah.","auth/wrong-password":"Email atau kata sandi salah.","auth/user-not-found":"Akun belum terdaftar.","auth/email-already-in-use":"Email sudah terdaftar. Silakan masuk.","auth/weak-password":"Kata sandi minimal 6 karakter.","auth/invalid-email":"Format email tidak valid.","auth/too-many-requests":"Terlalu banyak percobaan. Coba lagi nanti."};
-let U=null,ADMIN=false,ALL=[],REQ=[],unsub=null,unsubP=null,unsubQ=null,unsubI=null,IZN=[],MYREQ={},INREQ=[],unsubR=null,unsubO=null,BUSY=false,UP=false;
+let U=null,ADMIN=false,ALL=[],REQ=[],unsub=null,unsubP=null,unsubQ=null,unsubI=null,IZN=[],SHOW=5,MYREQ={},INREQ=[],unsubR=null,unsubO=null,BUSY=false,UP=false;
 
 $("fk").innerHTML=JENIS.map(j=>"<option>"+j+"</option>").join("");
 $("fJ").innerHTML='<option value="">Semua jenis</option>'+JENIS.map(j=>"<option>"+j+"</option>").join("");
@@ -136,13 +137,15 @@ function render(){
   const fj=$("fJ"),jv=fj.value,js=[...JENIS,...new Set(ALL.map(r=>r.jenis).filter(x=>x&&!JENIS.includes(x)))];
   fj.innerHTML='<option value="">Semua jenis</option>'+js.map(j=>"<option>"+esc(j)+"</option>").join("");fj.value=js.includes(jv)?jv:"";
   const fp=$("fP"),pv=fp.value,pw={};ALL.forEach(r=>pw[r.uid]=r.nama||"Pengawas");
-  fp.innerHTML='<option value="">Semua pengawas</option>'+Object.keys(pw).map(u=>'<option value="'+esc(u)+'">'+esc(pw[u])+"</option>").join("");fp.value=pw[pv]?pv:"";
+  fp.innerHTML='<option value="">Semua pengawas (pilih nama)</option>'+Object.keys(pw).sort((x,y)=>pw[x].localeCompare(pw[y])).map(u=>'<option value="'+esc(u)+'">'+esc(pw[u])+"</option>").join("");fp.value=pw[pv]?pv:"";
   const ty=String(new Date().getFullYear()),sch=new Set(ALL.map(r=>(r.sekolah||"").trim().toLowerCase()).filter(Boolean)).size;
   $("stats").innerHTML=[["Total laporan",ALL.length],["Tahun ini",ALL.filter(r=>(r.tgl||"").startsWith(ty)).length],["Pengawas mengunggah",Object.keys(pw).length],["Sekolah binaan",sch]].map(s=>'<div class="stat"><b>'+s[1]+"</b><small>"+s[0]+"</small></div>").join("");
   const q=$("q").value.toLowerCase(),j=$("fJ").value,y=fy.value,p=fp.value;
-  const rows=ALL.filter(r=>(!j||r.jenis===j)&&(!p||r.uid===p)&&(!y||(r.tgl||"").startsWith(y))&&(!q||[r.judul,r.sekolah,r.ringkasan].join(" ").toLowerCase().includes(q)));
+  const rows=ALL.filter(r=>(!j||r.jenis===j)&&(!p||r.uid===p)&&(!y||(r.tgl||"").startsWith(y))&&(!q||[r.judul,r.sekolah,r.ringkasan,r.nama].join(" ").toLowerCase().includes(q)));
+  const pi=$("pinfo");
+  if(p){pi.hidden=false;pi.innerHTML=p===U.uid?"Menampilkan laporan Anda sendiri ("+rows.length+").":"Menampilkan laporan <b>"+esc(pw[p]||"")+"</b> ("+rows.length+" laporan). Klik <b>Minta izin</b> pada laporan yang ingin dibuka."}else pi.hidden=true;
   dash(rows);
-  $("list").innerHTML=rows.map(r=>'<div class="item"><div style="flex:1;min-width:220px"><h3>'+esc(r.judul)+'</h3><div class="meta"><span class="tag">'+esc(r.jenis)+"</span><span>"+esc(r.nama||"Pengawas")+"</span><span>·</span><span>"+esc(r.sekolah||"-")+"</span><span>·</span><span>"+esc(tgl(r.tgl))+"</span></div>"+(r.ringkasan?"<p>"+esc(r.ringkasan)+"</p>":"")+(r.fileName?'<p style="font-size:.8rem">'+esc(r.fileName)+"</p>":"")+izinInfo(r)+'</div><div class="acts">'+bukaBtn(r)+(ADMIN||r.uid===U.uid?'<button class="btn del sm" data-del="'+esc(r.id)+'">Hapus</button>':"")+"</div></div>").join("");
+  $("list").innerHTML=rows.slice(0,SHOW).map(r=>'<div class="item"><div style="flex:1;min-width:220px"><h3>'+esc(r.judul)+'</h3><div class="meta"><span class="tag">'+esc(r.jenis)+"</span><span>"+esc(r.nama||"Pengawas")+"</span><span>·</span><span>"+esc(r.sekolah||"-")+"</span><span>·</span><span>"+esc(tgl(r.tgl))+"</span></div>"+(r.ringkasan?"<p>"+esc(r.ringkasan)+"</p>":"")+(r.fileName?'<p style="font-size:.8rem">'+esc(r.fileName)+"</p>":"")+izinInfo(r)+'</div><div class="acts">'+bukaBtn(r)+(ADMIN||r.uid===U.uid?'<button class="btn del sm" data-del="'+esc(r.id)+'">Hapus</button>':"")+"</div></div>").join("")+more(rows.length);
   $("state").hidden=rows.length>0;
   if(!rows.length)$("state").textContent=ALL.length?"Tidak ada laporan yang cocok.":"Belum ada laporan. Tambahkan laporan pertama di atas.";
 }
@@ -188,7 +191,18 @@ $("list").addEventListener("click",async e=>{const b=e.target.closest("[data-del
   const r=ALL.find(x=>x.id===b.dataset.del);
   if(r&&confirm("Hapus laporan “"+r.judul+"”? Tindakan ini tidak bisa dibatalkan.")){try{await DB.doc("laporan/"+r.id).delete();try{await DB.doc("berkas/"+r.id).delete()}catch(x){}}catch(er){alert("Gagal menghapus: "+er.message)}}});
 $("fsave").onclick=simpan;
-["q","fJ","fY","fP"].forEach(k=>$(k).addEventListener("input",render));
+["q","fJ","fY","fP"].forEach(k=>$(k).addEventListener("input",()=>{SHOW=5;render()}));
+
+/* ---- Tampilkan bertahap ---- */
+function more(n){
+  if(n<=5)return "";
+  const sisa=n-SHOW;
+  return '<p style="text-align:center;margin:12px 0"><span class="note">Menampilkan '+Math.min(SHOW,n)+" dari "+n+' laporan</span><br>'+(sisa>0?'<button class="btn ghost sm" data-more="1">Tampilkan '+Math.min(5,sisa)+" lagi</button> ":"")+(SHOW>5?'<button class="btn ghost sm" data-less="1">Sembunyikan</button>':"")+"</p>";
+}
+$("list").addEventListener("click",e=>{
+  if(e.target.closest("[data-more]")){SHOW+=5;render()}
+  else if(e.target.closest("[data-less]")){SHOW=5;render();$("list").scrollIntoView({behavior:"smooth",block:"start"})}
+});
 
 /* ---- Izin membuka laporan ---- */
 function bukaBtn(r){
