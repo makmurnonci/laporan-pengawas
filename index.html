@@ -67,16 +67,16 @@ input,select,textarea{width:100%;font:inherit;padding:8px 10px;border:1px solid 
 <div id="vApp" hidden>
   <div class="top"><div><h1>Arsip Laporan Pengawas Sekolah</h1><p class="sub">Tempat bersama para pengawas menyimpan dan mencari laporan kepengawasan.</p></div>
   <div><small id="who" class="note"></small> <button class="btn ghost sm" id="out">Keluar</button></div></div>
+  <div class="panel" id="inBox" hidden style="border-color:var(--brand);border-width:2px">
+    <h2>Permintaan izin membuka laporan Anda <small id="inN" class="note"></small></h2>
+    <div id="inL"></div>
+  </div>
+
   <div class="stats" id="stats"></div>
 
   <div class="panel" id="admBox" hidden>
     <h2>Permintaan akses pengawas <small id="admN" class="note"></small></h2>
     <div id="admL"></div>
-  </div>
-
-  <div class="panel" id="inBox" hidden>
-    <h2>Permintaan izin membuka laporan Anda <small id="inN" class="note"></small></h2>
-    <div id="inL"></div>
   </div>
 
   <div class="panel">
@@ -142,7 +142,7 @@ function render(){
   const q=$("q").value.toLowerCase(),j=$("fJ").value,y=fy.value,p=fp.value;
   const rows=ALL.filter(r=>(!j||r.jenis===j)&&(!p||r.uid===p)&&(!y||(r.tgl||"").startsWith(y))&&(!q||[r.judul,r.sekolah,r.ringkasan].join(" ").toLowerCase().includes(q)));
   dash(rows);
-  $("list").innerHTML=rows.map(r=>'<div class="item"><div style="flex:1;min-width:220px"><h3>'+esc(r.judul)+'</h3><div class="meta"><span class="tag">'+esc(r.jenis)+"</span><span>"+esc(r.nama||"Pengawas")+"</span><span>·</span><span>"+esc(r.sekolah||"-")+"</span><span>·</span><span>"+esc(tgl(r.tgl))+"</span></div>"+(r.ringkasan?"<p>"+esc(r.ringkasan)+"</p>":"")+(r.fileName?'<p style="font-size:.8rem">'+esc(r.fileName)+"</p>":"")+'</div><div class="acts">'+bukaBtn(r)+(ADMIN||r.uid===U.uid?'<button class="btn del sm" data-del="'+esc(r.id)+'">Hapus</button>':"")+"</div></div>").join("");
+  $("list").innerHTML=rows.map(r=>'<div class="item"><div style="flex:1;min-width:220px"><h3>'+esc(r.judul)+'</h3><div class="meta"><span class="tag">'+esc(r.jenis)+"</span><span>"+esc(r.nama||"Pengawas")+"</span><span>·</span><span>"+esc(r.sekolah||"-")+"</span><span>·</span><span>"+esc(tgl(r.tgl))+"</span></div>"+(r.ringkasan?"<p>"+esc(r.ringkasan)+"</p>":"")+(r.fileName?'<p style="font-size:.8rem">'+esc(r.fileName)+"</p>":"")+izinInfo(r)+'</div><div class="acts">'+bukaBtn(r)+(ADMIN||r.uid===U.uid?'<button class="btn del sm" data-del="'+esc(r.id)+'">Hapus</button>':"")+"</div></div>").join("");
   $("state").hidden=rows.length>0;
   if(!rows.length)$("state").textContent=ALL.length?"Tidak ada laporan yang cocok.":"Belum ada laporan. Tambahkan laporan pertama di atas.";
 }
@@ -210,10 +210,17 @@ $("list").addEventListener("click",async e=>{
       alert("Permintaan dikirim ke "+(r.nama||"pengawas")+".")}
     catch(er){alert("Gagal mengirim permintaan: "+(er.message||er))}}
 });
+const tm=t=>t&&t.toDate?t.toDate().toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"numeric"}):"";
+function izinInfo(r){
+  if(!U||r.uid!==U.uid)return "";
+  const a=INREQ.filter(x=>x.laporanId===r.id),w=a.filter(x=>x.status==="menunggu").map(x=>x.pemohonNama||x.pemohonEmail),d=a.filter(x=>x.status==="disetujui").map(x=>x.pemohonNama||x.pemohonEmail);
+  if(!a.length)return "";
+  return '<p style="font-size:.82rem">'+(w.length?'<b style="color:var(--danger)">Menunggu izin Anda: '+esc(w.join(", "))+"</b> ":"")+(d.length?"Diizinkan: "+esc(d.join(", ")):"")+"</p>";
+}
 function renderIn(){
   const L=INREQ.slice().sort((a,b)=>(a.status==="menunggu"?0:1)-(b.status==="menunggu"?0:1)),w=INREQ.filter(x=>x.status==="menunggu").length;
   $("inBox").hidden=!L.length;$("inN").textContent=w?"("+w+" menunggu)":"";
-  $("inL").innerHTML=L.map(x=>'<div class="item" style="margin-bottom:8px"><div><h3>'+esc(x.pemohonNama||x.pemohonEmail)+'</h3><div class="meta">Ingin membuka: '+esc(x.judul)+'</div></div><div class="acts">'+(x.status==="menunggu"?'<button class="btn sm" data-yes="'+esc(x.id)+'">Izinkan</button><button class="btn del sm" data-nope="'+esc(x.id)+'">Tolak</button>':'<span class="tag">Diizinkan</span><button class="btn del sm" data-nope="'+esc(x.id)+'">Cabut</button>')+"</div></div>").join("");
+  $("inL").innerHTML=L.map(x=>'<div class="item" style="margin-bottom:8px"><div><h3>'+esc(x.pemohonNama||x.pemohonEmail)+'</h3><div class="meta">'+esc(x.pemohonEmail||"")+(tm(x.at)?" · "+tm(x.at):"")+'</div><p style="margin:2px 0 0;font-size:.9rem">Ingin membuka: <b>'+esc(x.judul)+'</b></p></div><div class="acts">'+(x.status==="menunggu"?'<button class="btn sm" data-yes="'+esc(x.id)+'">Izinkan</button><button class="btn del sm" data-nope="'+esc(x.id)+'">Tolak</button>':'<span class="tag">Diizinkan</span><button class="btn del sm" data-nope="'+esc(x.id)+'">Cabut</button>')+"</div></div>").join("");
 }
 $("inL").addEventListener("click",async e=>{
   const y=e.target.closest("[data-yes]"),n=e.target.closest("[data-nope]");
@@ -277,7 +284,7 @@ else{
     $("vLogin").hidden=true;$("vWait").hidden=true;$("vApp").hidden=false;$("admBox").hidden=!ADMIN;
     unsub=DB.collection("laporan").orderBy("tgl","desc").onSnapshot(s=>{ALL=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{$("state").hidden=false;$("state").textContent="Koneksi data bermasalah. Periksa aturan Firestore lalu muat ulang."});
     unsubR=DB.collection("permohonan").where("pemohonUid","==",u.uid).onSnapshot(s=>{MYREQ={};s.docs.forEach(d=>{MYREQ[d.data().laporanId]=d.data()});render()},()=>{});
-    unsubO=DB.collection("permohonan").where("ownerUid","==",u.uid).onSnapshot(s=>{INREQ=s.docs.map(d=>Object.assign({id:d.id},d.data()));renderIn()},()=>{});
+    unsubO=DB.collection("permohonan").where("ownerUid","==",u.uid).onSnapshot(s=>{INREQ=s.docs.map(d=>Object.assign({id:d.id},d.data()));renderIn();render()},()=>{});
     if(ADMIN)unsubI=DB.collection("izin").onSnapshot(s=>{IZN=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
     if(ADMIN)unsubQ=DB.collection("permintaan").onSnapshot(s=>{REQ=s.docs.map(d=>Object.assign({id:d.id},d.data()));renderReq()},()=>{});
   };
