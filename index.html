@@ -66,13 +66,18 @@ input,select,textarea{width:100%;font:inherit;padding:8px 10px;border:1px solid 
 
 <div id="vApp" hidden>
   <div class="top"><div><h1>Arsip Laporan Pengawas Sekolah</h1><p class="sub">Tempat bersama para pengawas menyimpan dan mencari laporan kepengawasan.</p></div>
-  <div><small id="who" class="note"></small> <button class="btn ghost sm" id="out">Keluar</button></div></div>
+  <div><small id="who" class="note"></small> <button class="btn ghost sm" id="prof">Identitas saya</button> <button class="btn ghost sm" id="out">Keluar</button></div></div>
   <div class="stats" id="stats"></div>
 
   <div class="panel" id="admBox" hidden>
     <h2>Permintaan akses pengawas <small id="admN" class="note"></small></h2>
     <div id="admL"></div>
   </div>
+
+  <details class="panel" id="pgBox" hidden>
+    <summary style="cursor:pointer;font-weight:600">Daftar pengawas terdaftar <small id="pgN" class="note"></small></summary>
+    <div id="pgL" style="margin-top:10px"></div>
+  </details>
 
   <div class="panel">
     <h2>Tambah laporan</h2>
@@ -107,6 +112,16 @@ input,select,textarea{width:100%;font:inherit;padding:8px 10px;border:1px solid 
   <p class="empty" id="state">Memuat arsip…</p>
 </div>
 </div>
+
+<dialog id="dlg" style="border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);max-width:420px;width:92%;padding:18px">
+  <h2 style="margin:0 0 10px;font-size:1.05rem">Identitas saya</h2>
+  <label for="pn">Nama lengkap</label><input id="pn" maxlength="80">
+  <label for="pnip">NIP</label><input id="pnip" maxlength="30" inputmode="numeric">
+  <label for="pjb">Jabatan</label><input id="pjb" maxlength="60" placeholder="Pengawas Sekolah">
+  <label for="pwl">Wilayah binaan</label><input id="pwl" maxlength="80" placeholder="Contoh: Kecamatan, jenjang">
+  <p style="margin:8px 0 0"><button class="btn" id="psave">Simpan</button> <button class="btn ghost" id="pcancel">Batal</button></p>
+  <p class="msg" id="pmsg"></p>
+</dialog>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -247,6 +262,17 @@ $("list").addEventListener("click",async e=>{
     if(y)await DB.doc("permohonan/"+y.dataset.yes).update({status:"disetujui",at:firebase.firestore.FieldValue.serverTimestamp()});
     else if(n&&confirm("Tolak permintaan izin ini?"))await DB.doc("permohonan/"+n.dataset.nope).delete();
   }catch(er){alert("Gagal: "+(er.message||er))}});
+/* ---- Daftar pengawas (admin) ---- */
+function renderPeng(){
+  const L=IZN.slice().sort((a,b)=>(a.nama||a.id).localeCompare(b.nama||b.id));
+  $("pgN").textContent="("+L.length+")";
+  $("pgL").innerHTML=L.map(x=>'<div class="item" style="margin:8px 0"><div><h3>'+esc(x.nama||x.id)+'</h3><div class="meta">'+esc(x.id)+(x.nip?" · NIP "+esc(x.nip):"")+(x.jabatan?" · "+esc(x.jabatan):"")+(x.wilayah?" · "+esc(x.wilayah):"")+(x.admin===true?' <span class="tag">Admin</span>':"")+'</div></div><div class="acts">'+(x.admin===true?"":'<button class="btn del sm" data-rm="'+esc(x.id)+'">Hapus akses</button>')+"</div></div>").join("");
+}
+$("pgL").addEventListener("click",async e=>{
+  const b=e.target.closest("[data-rm]");if(!b)return;
+  if(!confirm("Hapus akses "+b.dataset.rm+"? Pengawas ini tidak bisa masuk lagi ke arsip. Laporan yang sudah diunggah tetap ada."))return;
+  try{await DB.doc("izin/"+b.dataset.rm).delete()}catch(er){alert("Gagal: "+(er.message||er))}});
+
 /* ---- Dashboard ---- */
 const BLN=["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
 function dash(rows){
@@ -278,6 +304,24 @@ $("ago").onclick=async()=>{
 $("areset").onclick=async()=>{const em=$("aem").value.trim();if(!em){lmsg("Isi email dulu.");return}
   try{await AUTH.sendPasswordResetEmail(em);lmsg("Tautan atur ulang dikirim ke email Anda.",true)}catch(e){lmsg(AERR[e.code]||"Gagal: "+e.message)}};
 $("out").onclick=()=>AUTH.signOut();
+let PROF={};
+$("prof").onclick=()=>{$("pn").value=U.displayName||"";$("pnip").value=PROF.nip||"";$("pjb").value=PROF.jabatan||"";$("pwl").value=PROF.wilayah||"";$("pmsg").textContent="";$("dlg").showModal()};
+$("pcancel").onclick=()=>$("dlg").close();
+$("psave").onclick=async()=>{
+  const n=$("pn").value.trim(),d={nama:n,nip:$("pnip").value.trim(),jabatan:$("pjb").value.trim(),wilayah:$("pwl").value.trim()},m=$("pmsg");
+  if(!n){m.style.color="var(--danger)";m.textContent="Nama tidak boleh kosong.";return}
+  $("psave").disabled=true;m.style.color="var(--ok)";m.textContent="Menyimpan…";
+  try{
+    if(n!==(U.displayName||"")){
+      await U.updateProfile({displayName:n});
+      const q=await DB.collection("laporan").where("uid","==",U.uid).get();
+      for(let i=0;i<q.docs.length;i+=400){const bt=DB.batch();q.docs.slice(i,i+400).forEach(x=>bt.update(x.ref,{nama:n}));await bt.commit()}
+    }
+    await DB.doc("izin/"+U.email.toLowerCase()).update(d);
+    PROF=Object.assign(PROF,d);$("who").textContent=n+(ADMIN?" (admin)":"");$("dlg").close();
+  }catch(er){m.style.color="var(--danger)";m.textContent="Gagal: "+(er.message||er)}
+  $("psave").disabled=false;
+};
 $("wout").onclick=()=>AUTH.signOut();
 function renderReq(){
   $("admN").textContent=REQ.length?"("+REQ.length+" menunggu)":"";
@@ -297,13 +341,13 @@ if(FB_CONFIG.apiKey.indexOf("ISI")===0){$("vLogin").hidden=false;lmsg("Isi FB_CO
 else{
   firebase.initializeApp(FB_CONFIG);AUTH=firebase.auth();AUTH.languageCode="id";DB=firebase.firestore();
   const enter=(u,z)=>{
-    ADMIN=z.data().admin===true;U=u;
+    ADMIN=z.data().admin===true;U=u;PROF=z.data();
     $("who").textContent=(u.displayName||u.email)+(ADMIN?" (admin)":"");
-    $("vLogin").hidden=true;$("vWait").hidden=true;$("vApp").hidden=false;$("admBox").hidden=!ADMIN;
+    $("vLogin").hidden=true;$("vWait").hidden=true;$("vApp").hidden=false;$("admBox").hidden=!ADMIN;$("pgBox").hidden=!ADMIN;
     unsub=DB.collection("laporan").orderBy("tgl","desc").onSnapshot(s=>{ALL=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{$("state").hidden=false;$("state").textContent="Koneksi data bermasalah. Periksa aturan Firestore lalu muat ulang."});
     unsubR=DB.collection("permohonan").where("pemohonUid","==",u.uid).onSnapshot(s=>{MYREQ={};s.docs.forEach(d=>{MYREQ[d.data().laporanId]=d.data()});render()},()=>{});
     unsubO=DB.collection("permohonan").where("ownerUid","==",u.uid).onSnapshot(s=>{INREQ=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
-    if(ADMIN)unsubI=DB.collection("izin").onSnapshot(s=>{IZN=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()},()=>{});
+    if(ADMIN)unsubI=DB.collection("izin").onSnapshot(s=>{IZN=s.docs.map(d=>Object.assign({id:d.id},d.data()));render();renderPeng()},()=>{});
     if(ADMIN)unsubQ=DB.collection("permintaan").onSnapshot(s=>{REQ=s.docs.map(d=>Object.assign({id:d.id},d.data()));renderReq()},()=>{});
   };
   AUTH.onAuthStateChanged(async u=>{
